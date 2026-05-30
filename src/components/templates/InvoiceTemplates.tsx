@@ -236,7 +236,7 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl }) 
               <th className="pb-3 text-center w-12">Qty</th>
               <th className="pb-3 text-right w-20">Rate</th>
               {invoice.templateConfig?.layout.columnVisibility.discount && <th className="pb-3 text-center w-12">Disc</th>}
-              {invoice.templateConfig?.layout.columnVisibility.tax && <th className="pb-3 text-center w-12">GST</th>}
+              {invoice.templateConfig?.layout.columnVisibility.tax && invoice.taxMode === "item" && <th className="pb-3 text-center w-12">GST</th>}
               <th className="pb-3 text-right w-24">Amount</th>
             </tr>
           </thead>
@@ -256,7 +256,7 @@ export const ModernTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl }) 
                   {invoice.templateConfig?.layout.columnVisibility.discount && (
                     <td className="py-3 text-center text-gray-600">{Number(item.discount) > 0 ? `${item.discount}%` : "—"}</td>
                   )}
-                  {invoice.templateConfig?.layout.columnVisibility.tax && (
+                  {invoice.templateConfig?.layout.columnVisibility.tax && invoice.taxMode === "item" && (
                     <td className="py-3 text-center text-gray-600">{Number(item.tax) > 0 ? `${item.tax}%` : "—"}</td>
                   )}
                   <td className="py-3 text-right font-bold text-gray-900">{fmt(sym, c.total)}</td>
@@ -569,7 +569,7 @@ export const JewelryTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl })
             <th className="py-2 text-right w-16">Net Wt</th>
             <th className="py-2 text-right w-20">Rate/g</th>
             <th className="py-2 text-right w-16">Labour</th>
-            <th className="py-2 text-center w-12">GST %</th>
+            {invoice.taxMode === "item" && <th className="py-2 text-center w-12">GST %</th>}
             <th className="py-2 text-right w-24 pr-2">Amount</th>
           </tr>
         </thead>
@@ -588,7 +588,7 @@ export const JewelryTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl })
                 <td className="py-3 text-right text-gray-900 font-semibold font-mono">{item.netWeight ? `${item.netWeight} g` : "—"}</td>
                 <td className="py-3 text-right text-gray-600 font-mono">{fmt(sym, Number(item.rate))}</td>
                 <td className="py-3 text-right text-gray-600 font-mono">{fmt(sym, Number(item.labour || 0))}</td>
-                <td className="py-3 text-center text-gray-600">{item.tax || 3}%</td>
+                {invoice.taxMode === "item" && <td className="py-3 text-center text-gray-600">{item.tax || 3}%</td>}
                 <td className="py-3 text-right font-bold text-gray-900 pr-2 font-mono">{fmt(sym, c.total)}</td>
               </tr>
             );
@@ -628,21 +628,29 @@ export const JewelryTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl })
               <span>Overall Discount</span><span className="font-mono">− {fmt(sym, invoice.invoiceDiscountAmount)}</span>
             </div>
           ) : null}
-          {invoice.cgstAmount ? (
+          {invoice.taxMode === "item" || (!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
             <div className="flex justify-between text-gray-500">
-              <span>CGST ({invoice.cgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
+              <span>GST Total</span><span className="font-mono">{fmt(sym, invoice.totalTax)}</span>
             </div>
-          ) : null}
-          {invoice.sgstAmount ? (
-            <div className="flex justify-between text-gray-500">
-              <span>SGST ({invoice.sgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
-            </div>
-          ) : null}
-          {invoice.igstAmount ? (
-            <div className="flex justify-between text-gray-500">
-              <span>IGST ({invoice.igstRate}%)</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
-            </div>
-          ) : null}
+          ) : (
+            <>
+              {invoice.cgstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>CGST ({invoice.cgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
+                </div>
+              ) : null}
+              {invoice.sgstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>SGST ({invoice.sgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
+                </div>
+              ) : null}
+              {invoice.igstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>IGST ({invoice.igstRate}%)</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
+                </div>
+              ) : null}
+            </>
+          )}
           {invoice.roundOff ? (
             <div className="flex justify-between text-gray-400 text-[10px] italic">
               <span>Round Off</span><span className="font-mono">{invoice.roundOff < 0 ? "" : "+"}{fmt(sym, invoice.roundOff)}</span>
@@ -738,7 +746,7 @@ export const ManufacturingTemplate: React.FC<TemplateProps> = ({ invoice, qrCode
             <th className="py-2.5 text-center w-16">HSN/SAC</th>
             <th className="py-2.5 text-center w-14">Qty</th>
             <th className="py-2.5 text-right w-20">Rate</th>
-            {invoice.templateConfig?.layout.columnVisibility.tax && <th className="py-2.5 text-center w-14">Tax Rate</th>}
+            {invoice.templateConfig?.layout.columnVisibility.tax && invoice.taxMode === "item" && <th className="py-2.5 text-center w-14">Tax Rate</th>}
             <th className="py-2.5 text-right w-24 pr-2">Amount</th>
           </tr>
         </thead>
@@ -788,21 +796,29 @@ export const ManufacturingTemplate: React.FC<TemplateProps> = ({ invoice, qrCode
           <div className="flex justify-between text-gray-500">
             <span>Taxable Amount</span><span className="font-mono">{fmt(sym, invoice.taxableAmount)}</span>
           </div>
-          {invoice.cgstAmount ? (
+          {invoice.taxMode === "item" || (!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
             <div className="flex justify-between text-gray-500">
-              <span>CGST Amount</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
+              <span>GST Amount</span><span className="font-mono">{fmt(sym, invoice.totalTax)}</span>
             </div>
-          ) : null}
-          {invoice.sgstAmount ? (
-            <div className="flex justify-between text-gray-500">
-              <span>SGST Amount</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
-            </div>
-          ) : null}
-          {invoice.igstAmount ? (
-            <div className="flex justify-between text-gray-500">
-              <span>IGST Amount</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
-            </div>
-          ) : null}
+          ) : (
+            <>
+              {invoice.cgstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>CGST Amount</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
+                </div>
+              ) : null}
+              {invoice.sgstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>SGST Amount</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
+                </div>
+              ) : null}
+              {invoice.igstAmount ? (
+                <div className="flex justify-between text-gray-500">
+                  <span>IGST Amount</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
+                </div>
+              ) : null}
+            </>
+          )}
           {invoice.shippingCharges ? (
             <div className="flex justify-between text-gray-500">
               <span>Freight/Shipping</span><span className="font-mono">{fmt(sym, invoice.shippingCharges)}</span>

@@ -81,6 +81,7 @@ export interface CategoryTemplate {
   description: string;
   pdfLayout: "corporate" | "modern" | "premium" | "minimal" | "luxury" | "industrial" | "government" | "thermal" | "a5";
   accentColor: string;
+  taxMode?: "invoice" | "item";
 }
 
 export type CalculationMode =
@@ -115,6 +116,7 @@ export interface BusinessCategory {
   terminology: CategoryTerminology;
   templates: CategoryTemplate[];
   defaultGSTRate: number;     // default GST % for this category
+  taxMode: "invoice" | "item";
 }
 
 // ─── Column Definitions Master List ──────────────────────────────────────────
@@ -197,6 +199,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "retail-thermal",  name: "Thermal Receipt",     description: "58mm / 80mm thermal print",         pdfLayout: "thermal",   accentColor: "#111827" },
     ],
     defaultGSTRate: 18,
+    taxMode: "item",
   },
 
   // ─── 2. Jewelry ──────────────────────────────────────────────────────────
@@ -236,6 +239,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "jewelry-premium",   name: "Premium Jewelry Invoice",  description: "Luxury boutique style",              pdfLayout: "luxury",    accentColor: "#78350f" },
     ],
     defaultGSTRate: 3,
+    taxMode: "invoice",
   },
 
   // ─── 3. Manufacturing ────────────────────────────────────────────────────
@@ -273,6 +277,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "mfg-export",    name: "Export Invoice",          description: "International export format",    pdfLayout: "premium",    accentColor: "#1e3a5f" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 4. Wholesale ────────────────────────────────────────────────────────
@@ -306,6 +311,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "ws-distributor",name: "Distributor Invoice",  description: "Distributor discount layout",   pdfLayout: "premium",   accentColor: "#1e3a8a" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 5. Distribution ────────────────────────────────────────────────────
@@ -339,6 +345,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "dist-modern",   name: "Modern Distribution",   description: "Clean modern layout",        pdfLayout: "modern",    accentColor: "#0284c7" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 6. Service Provider ────────────────────────────────────────────────
@@ -374,6 +381,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "svc-agency",     name: "Agency Invoice",      description: "Marketing/agency services",     pdfLayout: "luxury",    accentColor: "#8b5cf6" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 7. Freelancer ──────────────────────────────────────────────────────
@@ -408,6 +416,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "fl-creative", name: "Creative Agency",    description: "Bold creative layout",            pdfLayout: "premium",   accentColor: "#0e7490" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 8. Labor Contractor ────────────────────────────────────────────────
@@ -443,6 +452,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "lab-daily",     name: "Daily Wage Sheet",     description: "Day-wise worker billing",        pdfLayout: "corporate",  accentColor: "#92400e" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 9. Construction ────────────────────────────────────────────────────
@@ -479,6 +489,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "con-project", name: "Project Invoice",      description: "Full project billing sheet",   pdfLayout: "government", accentColor: "#78350f" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 10. Transport & Logistics ─────────────────────────────────────────
@@ -516,6 +527,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "tr-logistics", name: "Logistics Invoice",     description: "Modern logistics billing",     pdfLayout: "modern",     accentColor: "#2563eb" },
     ],
     defaultGSTRate: 12,
+    taxMode: "invoice",
   },
 
   // ─── 11. Healthcare ────────────────────────────────────────────────────
@@ -552,6 +564,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "hc-diagnostic",name: "Diagnostic Bill",     description: "Lab & diagnostic billing",       pdfLayout: "minimal",   accentColor: "#065f46" },
     ],
     defaultGSTRate: 0,
+    taxMode: "invoice",
   },
 
   // ─── 12. Education ─────────────────────────────────────────────────────
@@ -587,6 +600,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "edu-college",  name: "College Invoice",      description: "College admissions format",    pdfLayout: "government",accentColor: "#4c1d95" },
     ],
     defaultGSTRate: 0,
+    taxMode: "invoice",
   },
 
   // ─── 13. Agriculture ──────────────────────────────────────────────────
@@ -622,6 +636,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "agr-export",   name: "Export Invoice",     description: "Agricultural export format",   pdfLayout: "industrial", accentColor: "#22c55e" },
     ],
     defaultGSTRate: 0,
+    taxMode: "invoice",
   },
 
   // ─── 14. Automobile ───────────────────────────────────────────────────
@@ -658,6 +673,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "auto-showroom",name: "Showroom Invoice",     description: "New vehicle sales format",     pdfLayout: "premium",    accentColor: "#111827" },
     ],
     defaultGSTRate: 28,
+    taxMode: "item",
   },
 
   // ─── 15. Electronics ──────────────────────────────────────────────────
@@ -692,6 +708,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "elec-repair",   name: "Repair Invoice",      description: "Service/repair billing",      pdfLayout: "minimal",   accentColor: "#3b82f6" },
     ],
     defaultGSTRate: 18,
+    taxMode: "item",
   },
 
   // ─── 16. Restaurant & Food ────────────────────────────────────────────
@@ -727,6 +744,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "rest-thermal",  name: "Thermal POS Bill",  description: "80mm thermal printer format",  pdfLayout: "thermal",  accentColor: "#111827" },
     ],
     defaultGSTRate: 5,
+    taxMode: "item",
   },
 
   // ─── 17. Pharmacy ────────────────────────────────────────────────────
@@ -761,6 +779,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "pha-thermal",   name: "Thermal Bill",        description: "Thermal receipt format",       pdfLayout: "thermal",   accentColor: "#0e7490" },
     ],
     defaultGSTRate: 12,
+    taxMode: "item",
   },
 
   // ─── 18. Textile & Garment ────────────────────────────────────────────
@@ -795,6 +814,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "tex-export",    name: "Textile Export",     description: "Export/wholesale format",      pdfLayout: "premium",   accentColor: "#ec4899" },
     ],
     defaultGSTRate: 5,
+    taxMode: "invoice",
   },
 
   // ─── 19. Printing & Packaging ────────────────────────────────────────
@@ -830,6 +850,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "pr-digital",  name: "Digital Print",        description: "Digital printing format",     pdfLayout: "premium",   accentColor: "#a855f7" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 
   // ─── 20. Custom Category ─────────────────────────────────────────────
@@ -861,6 +882,7 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
       { id: "cus-government",name: "Government Format", description: "Official government style",    pdfLayout: "government",accentColor: "#1e40af" },
     ],
     defaultGSTRate: 18,
+    taxMode: "invoice",
   },
 ];
 

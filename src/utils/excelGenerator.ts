@@ -233,7 +233,8 @@ export async function exportDatabaseToExcel() {
     invoiceList.forEach(inv => {
       const catId = inv.businessCategory || "retail";
       inv.items.forEach(item => {
-        const c = calcItemForCategory(item, catId);
+        const effectiveTax = inv.taxMode === "item" ? (Number(item.tax) || 0) : 0;
+        const c = calcItemForCategory({ ...item, tax: effectiveTax }, catId);
         const even = rowIdx % 2 === 1;
         const row = ws.addRow([
           inv.invoiceNumber || "DRAFT",
@@ -250,7 +251,7 @@ export async function exportDatabaseToExcel() {
           +(item.hours || ""),
           +(item.weight || ""),
           +item.discount    || 0,
-          +item.tax         || 0,
+          effectiveTax,
           +c.subtotal.toFixed(2),
           +c.taxable.toFixed(2),
           +c.taxAmt.toFixed(2),

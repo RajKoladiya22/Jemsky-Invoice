@@ -2,6 +2,11 @@
 
 export type MobileSection = "company" | "client" | "details" | "items" | "notes";
 
+export enum TaxMode {
+  INVOICE = "invoice",
+  ITEM = "item",
+}
+
 export interface InvoiceItem {
   id: string;
   name: string;
@@ -63,6 +68,7 @@ export interface InvoiceItem {
   
   // Calculated per item
   amount?: number | string;
+  taxAmt?: number;
 }
 
 export interface TemplateBranding {
@@ -209,6 +215,7 @@ export interface InvoiceData {
   templateVariant?: string;    // 'classic' | 'modern' | 'premium' | ...
   industryFields?: Record<string, string | number>; // category-specific invoice-level fields
   status?: string; // 'draft' | 'pending' | 'paid' | 'cancelled'
+  taxMode?: TaxMode;
 }
 
 export interface SavedClient {

@@ -21,7 +21,7 @@ type SettingsTab = "general" | "appearance" | "storage" | "backup";
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
-  const { invoices, clients, products, companies } = useInvoiceStore();
+  const { invoices, clients, products, companies, autosaveEnabled, setAutosaveEnabled } = useInvoiceStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [confirmClear, setConfirmClear] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -231,9 +231,17 @@ export default function SettingsPage() {
                     Automatically saves your invoice 700ms after any change
                   </p>
                 </div>
-                <div className="w-11 h-6 rounded-full bg-violet-600 p-0.5 cursor-pointer">
-                  <div className="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform" />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutosaveEnabled(!autosaveEnabled)}
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors focus:outline-none ${
+                    autosaveEnabled ? "bg-violet-600" : "bg-gray-300 dark:bg-white/10"
+                  }`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                    autosaveEnabled ? "translate-x-5" : "translate-x-0"
+                  }`} />
+                </button>
               </div>
             </div>
           </div>

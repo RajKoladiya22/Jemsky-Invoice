@@ -9,13 +9,15 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { InvoiceData, InvoiceItem } from "../types";
+import type { InvoiceData, InvoiceItem, SavedInvoice } from "../types";
 import { generateUPIQRCode } from "./qrGenerator";
 import {
   getPDFColumns,
   getCategoryTerminology,
+  getCategoryAccentColor,
   getCategoryExtraFields,
 } from "../engine/columnEngine";
+import { categoryItemSubtotal } from "../engine/calculationEngine";
 import { db } from "../lib/db";
 import { numberToIndianWords } from "./amountInWords";
 
@@ -81,6 +83,57 @@ function resolveTemplate(invoice: InvoiceData): Template {
   return "corporate";
 }
 
+// ─── Standard PDF Fonts Mapping ──────────────────────────────────────────────
+function getStandardPdfFont(uiFont?: string): string {
+  const f = (uiFont || "").toLowerCase();
+  if (f.includes("roboto") || f.includes("inter") || f.includes("sora") || f.includes("helvetica")) {
+    return "Helvetica";
+  }
+  if (f.includes("courier") || f.includes("mono")) {
+    return "Courier";
+  }
+  if (f.includes("times") || f.includes("serif")) {
+    return "Times";
+  }
+  return "Helvetica";
+}
+
+// ─── Optimal Cell Width Override for PDF columns (to avoid text squeezing) ─────
+function getPdfCellWidth(itemField: string | null, isThermal: boolean, contentW: number): number | "auto" {
+  if (isThermal) return "auto";
+  
+  const overrides: Record<string, number> = {
+    quantity: 14,
+    unit: 12,
+    discount: 12,
+    tax: 12,
+    purity: 14,
+    grossWeight: 16,
+    stoneWeight: 16,
+    netWeight: 16,
+    rate: 22,
+    makingCharge: 22,
+    hsn: 16,
+    itemCode: 20,
+    batchNo: 20,
+    expiryDate: 20,
+    hours: 14,
+    numberOfWorkers: 14,
+    daysWorked: 14,
+    cartons: 16,
+    unitsPerCarton: 16,
+    weight: 16,
+    distance: 16,
+  };
+  
+  const baseWidth = (itemField && overrides[itemField]);
+  if (!baseWidth) return "auto";
+  
+  // Scale down for smaller page sizes (like A5) relative to standard A4 (content width ~182mm)
+  const scale = Math.min(1, contentW / 182);
+  return Math.round(baseWidth * scale);
+}
+
 // ─── Draw template header accent (top decorative band) ───────────────────────
 function drawHeaderAccent(
   doc: jsPDF,
@@ -138,7 +191,8 @@ function drawFooterAccent(
     doc.rect(0, footerY, pageW, 8, "F");
   }
 
-  doc.setFont("Helvetica", "normal");
+  const pdfFont = getStandardPdfFont(invoice.templateConfig?.branding?.fontFamily || "Helvetica");
+  doc.setFont(pdfFont, "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(
     template === "minimal" || template === "premium" || template === "jewelry"
@@ -189,7 +243,15 @@ export async function generateInvoicePDF(
     sections: { customerInfo: true, shippingInfo: true, gstDetails: true, paymentTerms: true, bankDetails: true, qrCode: true, notes: true, terms: true, signatureBlock: true },
   };
 
-  const currSym = invoice.currencySymbol || "₹";
+  // Safe replacement of rupee symbol with 'Rs.' to prevent encoding/fallback issues in standard jsPDF fonts
+  let currSym = (invoice.currencySymbol || "Rs.").trim();
+  currSym = currSym.replace(/[\u20B9₹]/g, "Rs.");
+  if (currSym === "INR") {
+    currSym = "Rs.";
+  }
+
+  const pdfFont = getStandardPdfFont(config.branding.fontFamily);
+
   const categoryId = invoice.businessCategory || invoice.templateCategory || "retail";
   const terminology = getCategoryTerminology(categoryId);
   const pdfCols     = getPDFColumns(categoryId);
@@ -214,12 +276,12 @@ export async function generateInvoicePDF(
   const textX = invoice.companyLogo ? margin + 23 : margin;
 
   // Company name
-  doc.setFont("Helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.setFontSize(isThermal ? 9 : 13);
   doc.setTextColor(...primary);
   doc.text(invoice.companyName || "YOUR COMPANY", textX, y + 5);
 
-  doc.setFont("Helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   doc.setFontSize(isThermal ? 6 : 8);
   doc.setTextColor(80, 80, 80);
 
@@ -233,10 +295,10 @@ export async function generateInvoicePDF(
   if (invoice.companyPhone)  { doc.text(`Ph: ${invoice.companyPhone}`,  textX, detY); detY += 3.5; }
   if (invoice.companyEmail)  { doc.text(`Email: ${invoice.companyEmail}`, textX, detY); detY += 3.5; }
   if (invoice.companyGST) {
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setTextColor(40, 40, 40);
     doc.text(`GSTIN: ${invoice.companyGST}`, textX, detY);
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setTextColor(80, 80, 80);
     detY += 3.5;
   }
@@ -254,7 +316,7 @@ export async function generateInvoicePDF(
     else if (tc === "credit")    docTitle = "CREDIT NOTE";
     else if (tc === "debit")     docTitle = "DEBIT NOTE";
 
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(16);
     doc.setTextColor(...primary);
     doc.text(docTitle, rightX, companyStartY + 6, { align: "right" });
@@ -267,16 +329,16 @@ export async function generateInvoicePDF(
     if (invoice.dueDate)  metaRows.push(["Due Date", invoice.dueDate]);
     if (invoice.poNumber) metaRows.push(["PO / Ref",  invoice.poNumber]);
 
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(8.5);
     let metaY = companyStartY + 13;
     metaRows.forEach(([label, value]) => {
       doc.setTextColor(110, 110, 110);
       doc.text(label + ":", rightX - 32, metaY, { align: "left" });
       doc.setTextColor(30, 30, 30);
-      doc.setFont("Helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.text(value, rightX, metaY, { align: "right" });
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       metaY += 4.5;
     });
   }
@@ -296,28 +358,28 @@ export async function generateInvoicePDF(
     const shipX   = margin + contentW / 2 + 4;
 
     // Label
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(...primary);
     doc.text("BILL TO", margin, y);
 
     let btY = y + 4.5;
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(25, 25, 25);
     doc.text(invoice.clientName || "—", margin, btY); btY += 4;
 
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(8);
     doc.setTextColor(90, 90, 90);
     if (invoice.clientCompany) { doc.text(invoice.clientCompany, margin, btY); btY += 3.8; }
     if (invoice.clientPhone)   { doc.text(`Ph: ${invoice.clientPhone}`, margin, btY); btY += 3.5; }
     if (invoice.clientEmail)   { doc.text(invoice.clientEmail, margin, btY); btY += 3.5; }
     if (invoice.clientGST) {
-      doc.setFont("Helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.setTextColor(40, 40, 40);
       doc.text(`GSTIN: ${invoice.clientGST}`, margin, btY);
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setTextColor(90, 90, 90);
       btY += 3.5;
     }
@@ -329,18 +391,18 @@ export async function generateInvoicePDF(
     // Ship To
     let maxY = btY;
     if (config.sections.shippingInfo && invoice.clientShippingAddress) {
-      doc.setFont("Helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(...primary);
       doc.text("SHIP TO", shipX, billToY);
 
       let stY = billToY + 4.5;
-      doc.setFont("Helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.setFontSize(9.5);
       doc.setTextColor(25, 25, 25);
       doc.text(invoice.clientName || "—", shipX, stY); stY += 4;
 
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setFontSize(8);
       doc.setTextColor(90, 90, 90);
       const shipLines = doc.splitTextToSize(invoice.clientShippingAddress, halfW);
@@ -363,7 +425,7 @@ export async function generateInvoicePDF(
       const panH = Math.ceil(entries.length / 3) * 5 + 4;
       doc.rect(margin, y, contentW, panH, "F");
 
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setFontSize(7);
       doc.setTextColor(70, 70, 70);
 
@@ -374,9 +436,9 @@ export async function generateInvoicePDF(
         const row = Math.floor(i / 3);
         const fx = margin + 2 + col * colW;
         const fy = y + 3 + row * 5;
-        doc.setFont("Helvetica", "bold");
+        doc.setFont(pdfFont, "bold");
         doc.text(`${label}:`, fx, fy);
-        doc.setFont("Helvetica", "normal");
+        doc.setFont(pdfFont, "normal");
         doc.text(String(val), fx + 22, fy);
       });
 
@@ -387,7 +449,8 @@ export async function generateInvoicePDF(
   // ── 5. ITEMS TABLE ──────────────────────────────────────────────────────────
   const pdfColumnDefs = pdfCols
     .filter(c => c.itemField !== null)
-    .filter(c => c.header !== "#" && c.header !== "Amount");
+    .filter(c => c.header !== "#" && c.header !== "Amount")
+    .filter(c => c.itemField !== "tax" || invoice.taxMode === "item");
 
   const tableHead = ["#", ...pdfColumnDefs.map(c => c.header), "Amount"];
 
@@ -397,9 +460,10 @@ export async function generateInvoicePDF(
       const val = (item as Record<string, unknown>)[col.itemField as string];
       if (val === undefined || val === null || val === "") {
         row.push("—");
-      } else if (col.align === "right" && typeof val === "number") {
+      } else if (col.align === "right" && (typeof val === "number" || (typeof val === "string" && val !== "" && !isNaN(Number(val))))) {
         const isMonetary = /rate|charge|making|labour/i.test(col.itemField as string);
-        row.push(isMonetary ? `${currSym}${Number(val).toFixed(2)}` : val);
+        const numVal = Number(val);
+        row.push(isMonetary ? `${currSym}${numVal.toFixed(2)}` : numVal);
       } else {
         row.push(String(val));
       }
@@ -409,12 +473,17 @@ export async function generateInvoicePDF(
   });
 
   const colStyles: Record<number, object> = {
-    0: { cellWidth: isThermal ? 5 : 7, halign: "center" },
-    [tableHead.length - 1]: { halign: "right", fontStyle: "bold" },
+    0: { cellWidth: isThermal ? 5 : Math.round(8 * (contentW / 182)), halign: "center" },
+    [tableHead.length - 1]: { halign: "right", fontStyle: "bold", cellWidth: isThermal ? 16 : Math.round(25 * (contentW / 182)) },
   };
   pdfColumnDefs.forEach((col, i) => {
     if (col.align === "right") colStyles[i + 1] = { halign: "right" };
-    if (col.width)             colStyles[i + 1] = { ...colStyles[i + 1], cellWidth: col.width };
+    // Fit table columns perfectly based on custom optimal widths
+    const w = getPdfCellWidth(col.itemField as string, isThermal, contentW);
+    colStyles[i + 1] = {
+      ...colStyles[i + 1],
+      cellWidth: w === "auto" ? "auto" : w,
+    };
   });
 
   autoTable(doc, {
@@ -424,11 +493,11 @@ export async function generateInvoicePDF(
     margin: { left: margin, right: margin },
     theme:  template === "minimal" ? "plain" : "striped",
     headStyles: {
+      font:       pdfFont,
       fillColor:  palette.headerBg,
       textColor:  palette.headerText,
       fontSize:   isThermal ? 6.5 : 8.5,
       fontStyle:  "bold",
-      halign:     "left",
       cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
     },
     alternateRowStyles: template === "minimal"
@@ -436,8 +505,9 @@ export async function generateInvoicePDF(
       : { fillColor: [250, 250, 253] },
     columnStyles: colStyles,
     styles: {
+      font:        pdfFont,
       fontSize:    isThermal ? 6.5 : 8,
-      cellPadding: isThermal ? 1.2 : 2.5,
+      cellPadding: isThermal ? 1.2 : (contentW < 140 ? 1.5 : 2.0),
       valign:      "middle",
       overflow:    "linebreak",
     },
@@ -445,7 +515,10 @@ export async function generateInvoicePDF(
     showHead: "everyPage",
     didParseCell(data) {
       if (data.row.type === "head") return;
-      if (data.cell.text[0]?.startsWith(currSym) || data.column.index === tableHead.length - 1) {
+      if (
+        data.cell.text[0]?.includes(currSym) ||
+        data.column.index === tableHead.length - 1
+      ) {
         data.cell.styles.halign = "right";
       }
     },
@@ -466,7 +539,7 @@ export async function generateInvoicePDF(
 
   // Right column: Totals
   const rightX = pageW - margin;
-  const labelX = rightX - 34;
+  const labelX = rightX - 45;
 
   const totals: { label: string; value: number; bold?: boolean }[] = [];
 
@@ -478,12 +551,16 @@ export async function generateInvoicePDF(
     totals.push({ label: "Taxable Amount", value: invoice.taxableAmount || 0 });
   }
 
-  if (config.sections.gstDetails) {
-    if ((invoice.cgstAmount || 0) > 0) totals.push({ label: `CGST @ ${invoice.cgstRate || 1.5}%`,  value: invoice.cgstAmount || 0 });
-    if ((invoice.sgstAmount || 0) > 0) totals.push({ label: `SGST @ ${invoice.sgstRate || 1.5}%`,  value: invoice.sgstAmount || 0 });
-    if ((invoice.igstAmount || 0) > 0) totals.push({ label: `IGST @ ${invoice.igstRate || 0}%`,    value: invoice.igstAmount || 0 });
-  } else if ((invoice.totalTax || 0) > 0) {
-    totals.push({ label: "Total Tax", value: invoice.totalTax || 0 });
+  if (invoice.taxMode === "item") {
+    if ((invoice.totalTax || 0) > 0) totals.push({ label: "GST Total", value: invoice.totalTax || 0 });
+  } else {
+    if (config.sections.gstDetails) {
+      if ((invoice.cgstAmount || 0) > 0) totals.push({ label: `CGST @ ${invoice.cgstRate || 1.5}%`,  value: invoice.cgstAmount || 0 });
+      if ((invoice.sgstAmount || 0) > 0) totals.push({ label: `SGST @ ${invoice.sgstRate || 1.5}%`,  value: invoice.sgstAmount || 0 });
+      if ((invoice.igstAmount || 0) > 0) totals.push({ label: `IGST @ ${invoice.igstRate || 0}%`,    value: invoice.igstAmount || 0 });
+    } else if ((invoice.totalTax || 0) > 0) {
+      totals.push({ label: "Total Tax", value: invoice.totalTax || 0 });
+    }
   }
 
   if ((invoice.shippingCharges || 0) > 0)    totals.push({ label: "Shipping Charges",    value: invoice.shippingCharges || 0 });
@@ -500,15 +577,16 @@ export async function generateInvoicePDF(
   let tY = summaryStartY;
   totals.forEach(row => {
     if (row.bold) {
+      tY += 4; // Add extra vertical spacing before drawing the bold separator and text
       // Separator line above grand total
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.3);
-      doc.line(labelX - 5, tY - 1.5, rightX, tY - 1.5);
-      doc.setFont("Helvetica", "bold");
+      doc.line(labelX - 5, tY - 4.0, rightX, tY - 4.0);
+      doc.setFont(pdfFont, "bold");
       doc.setFontSize(9.5);
       doc.setTextColor(...primary);
     } else {
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(70, 70, 70);
     }
@@ -523,7 +601,7 @@ export async function generateInvoicePDF(
   const words = numberToIndianWords(invoice.grandTotal || 0);
   const amtWordLines = doc.splitTextToSize(`Amount: ${words}`, contentW);
   tY += 2;
-  doc.setFont("Helvetica", "italic");
+  doc.setFont(pdfFont, "italic");
   doc.setFontSize(7.5);
   doc.setTextColor(90, 90, 90);
   amtWordLines.forEach((l: string) => { doc.text(l, rightX, tY, { align: "right" }); tY += 3.5; });
@@ -545,7 +623,7 @@ export async function generateInvoicePDF(
       if (qrDataUrl) {
         const qrSize = isThermal ? 20 : 26;
         doc.addImage(qrDataUrl, "PNG", margin, leftY, qrSize, qrSize);
-        doc.setFont("Helvetica", "bold");
+        doc.setFont(pdfFont, "bold");
         doc.setFontSize(7);
         doc.setTextColor(100, 100, 100);
         doc.text("Scan & Pay (UPI)", margin + qrSize / 2, leftY + qrSize + 3, { align: "center" });
@@ -556,12 +634,12 @@ export async function generateInvoicePDF(
 
   // Bank details
   if (config.sections.bankDetails && invoice.paymentDetails) {
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(8);
     doc.setTextColor(...primary);
     doc.text("PAYMENT DETAILS", margin, leftY); leftY += 3.5;
 
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(90, 90, 90);
     const bankLines = doc.splitTextToSize(invoice.paymentDetails, leftMaxW);
@@ -575,11 +653,11 @@ export async function generateInvoicePDF(
   checkPageBreak(30);
 
   if (config.sections.notes && invoice.notes) {
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(...primary);
     doc.text("NOTES", margin, y); y += 3.5;
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(100, 100, 100);
     doc.splitTextToSize(invoice.notes, contentW)
@@ -588,11 +666,11 @@ export async function generateInvoicePDF(
   }
 
   if (config.sections.terms && invoice.terms) {
-    doc.setFont("Helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(...primary);
     doc.text("TERMS & CONDITIONS", margin, y); y += 3.5;
-    doc.setFont("Helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(110, 110, 110);
     doc.splitTextToSize(invoice.terms, contentW)
@@ -613,7 +691,7 @@ export async function generateInvoicePDF(
       if (config.branding.showStamp && company?.stamp) {
         try {
           doc.addImage(company.stamp, "PNG", margin + 10, y, 20, 20);
-          doc.setFont("Helvetica", "normal");
+          doc.setFont(pdfFont, "normal");
           doc.setFontSize(7);
           doc.setTextColor(120, 120, 120);
           doc.text("Official Stamp", margin + 20, y + 23, { align: "center" });
@@ -630,11 +708,11 @@ export async function generateInvoicePDF(
       doc.setDrawColor(180, 180, 180);
       doc.setLineWidth(0.3);
       doc.line(sigX, y + 14, pageW - margin, y + 14);
-      doc.setFont("Helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(60, 60, 60);
       doc.text("Authorized Signatory", sigX + 19, y + 18, { align: "center" });
-      doc.setFont("Helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setFontSize(7);
       doc.setTextColor(110, 110, 110);
       doc.text(`for ${invoice.companyName || "Seller"}`, sigX + 19, y + 22, { align: "center" });
@@ -658,10 +736,6 @@ export async function generateInvoicePDF(
 export async function generateBulkPDF(invoices: InvoiceData[], opts: PDFOptions = {}) {
   if (!invoices.length) return;
 
-  // We generate each invoice as a separate PDF and merge using blob URLs isn't possible
-  // without pdf-lib. Instead, generate one PDF per page-group using jsPDF's addPage trick.
-  // For true multi-invoice single-PDF, iterate and addPage between invoices.
-  // Here we generate separate files for simplicity and correctness.
   for (const inv of invoices) {
     await generateInvoicePDF(inv, opts);
   }

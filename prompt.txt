@@ -1,403 +1,418 @@
-# Bill.Jemsky — Enterprise PDF & Excel Export Requirements
+# Bill.Jemsky Offline Installation & App Mode Requirements
 
-## Professional PDF Generation Engine
+Bill.Jemsky is designed as an Offline-First Invoice Platform.
 
-Never generate PDFs using:
-
-* window.print()
-* Browser Print to PDF
-* HTML screenshot export
-* DOM-to-image PDF generation
-
-These approaches produce inconsistent layouts across devices and printers.
-
-Instead, implement a dedicated PDF rendering engine.
+Since all business data is stored locally using IndexedDB and LocalStorage, users should be able to install and use the application even when there is no internet connection.
 
 ---
 
-# Recommended PDF Stack
+# Offline Installation Center
 
-## Primary Engine
+Add a new Settings section:
 
-React PDF
-
-Purpose:
-
-* Dynamic invoice rendering
-* Multi-page support
-* Consistent A4 layouts
-* Custom fonts
-* Table rendering
-* Automatic page breaks
-
----
-
-## Secondary Engine
-
-pdf-lib
-
-Purpose:
-
-* PDF manipulation
-* Watermarks
-* QR embedding
-* Signature embedding
-* PDF merging
+```text
+Settings
+ ├─ General
+ ├─ Appearance
+ ├─ Backup & Restore
+ ├─ Storage
+ ├─ Offline Installation
+ └─ About
+```
 
 ---
 
-# PDF Design Standards
+# Offline Installation Page
 
-## Supported Sizes
+Create a dedicated page:
 
-* A4 Portrait
-* A4 Landscape
-* A5
-* Letter
-* Thermal Receipt
-
----
-
-## Fixed Layout Grid
-
-Header Height:
-120px
-
-Customer Section:
-120px
-
-Item Table:
-Dynamic
-
-Summary Section:
-120px
-
-Footer:
-100px
-
-Use a professional PDF grid system rather than free-form positioning.
-
----
-
-# Professional Invoice Structure
-
-## Header
-
-Left:
-
-* Logo
-* Business Name
-* GST Number
-* Contact Details
-
-Center:
-
-* Invoice Type
-* Tax Invoice
-* Proforma Invoice
-* Quotation
-
-Right:
-
-* Invoice Number
-* Invoice Date
-* Due Date
-
----
-
-# Customer Block
-
-Billing Information
-
-Shipping Information
-
-GST Information
-
-Place of Supply
-
-Customer Code
-
----
-
-# Dynamic Item Table
-
-Columns loaded from selected category.
-
-Examples:
-
-## Jewelry
-
-* Item
-* Gross Weight
-* Net Weight
-* Purity
-* Making Charge
-* GST
-* Amount
-
-## Textile Job Work
-
-* Challan No
-* Description
-* HSN
-* Design No
-* Work
-* Plain
-* Short
-* Total
-* Rate
-* Amount
-
-## Manufacturing
-
-* Material
-* Batch No
-* Qty
-* Unit
-* Rate
-* Tax
-* Amount
-
----
-
-# Table Engine
-
-Requirements:
-
-* Repeating table headers
-* Automatic page breaks
-* No row splitting
-* Dynamic column widths
-* Row height calculation
-* Footer totals
-
----
-
-# Summary Section
+```text
+Settings → Offline Installation
+```
 
 Display:
 
-* Subtotal
-* Discount
-* Taxable Amount
-* CGST
-* SGST
-* IGST
-* Round Off
-* Grand Total
+```text
+Bill.Jemsky Offline App
+────────────────────────
+
+Status:
+✓ Offline Ready
+
+Storage Used:
+245 MB
+
+Last Backup:
+Today 10:45 AM
+
+[ Install App ]
+[ Download Desktop Version ]
+[ Export Local Data ]
+[ Import Local Data ]
+```
 
 ---
 
-# Amount in Words
+# Progressive Web App (PWA)
 
-Automatically convert:
-
-₹418352.00
-
-To:
-
-Four Lakh Eighteen Thousand Three Hundred Fifty Two Rupees Only
-
----
-
-# QR Block
-
-Support:
-
-* UPI QR
-* Invoice Verification QR
-* Business QR
-
----
-
-# Signature Block
-
-Support:
-
-* Digital Signature
-* Uploaded Signature
-* Company Stamp
-
-Stored in IndexedDB.
-
----
-
-# PDF Templates
-
-Provide multiple layouts.
-
-## Minimal
-
-Clean layout.
-
-## Corporate
-
-Enterprise style.
-
-## Premium
-
-Luxury design.
-
-## Textile
-
-Based on textile industry invoices.
-
-## Jewelry
-
-Gold and silver billing format.
-
-## Manufacturing
-
-Industrial layout.
-
-## Wholesale
-
-Distributor layout.
-
----
-
-# PDF Output Quality
+Convert Bill.Jemsky into a full PWA.
 
 Requirements:
 
-* 300 DPI equivalent output
-* Consistent margins
-* Embedded fonts
-* Vector rendering
-* Print-safe colors
-* Pixel-perfect alignment
+* Installable
+* Offline Support
+* Cache Assets
+* Cache Fonts
+* Cache Templates
+* Cache Icons
+* Background Sync Ready
 
-Output should look identical on:
+Use:
 
-* Chrome
-* Safari
-* Edge
-* Windows
-* Mac
-* Linux
-* Commercial printers
+```bash
+vite-plugin-pwa
+```
 
----
+Features:
 
-# Excel Export System
-
-Every invoice must be exportable as Excel.
+* Add to Home Screen
+* Install on Desktop
+* Launch Like Native App
+* Offline Startup
 
 ---
 
-# Recommended Library
+# Install Button
 
-ExcelJS
+Show when app is installable.
+
+Example:
+
+```text
+[ Install Bill.Jemsky ]
+```
+
+Behavior:
+
+Desktop:
+
+```text
+Chrome
+Edge
+Brave
+```
+
+Triggers:
+
+```js
+beforeinstallprompt
+```
+
+Mobile:
+
+```text
+Install App
+Add to Home Screen
+```
 
 ---
 
-# Excel Workbook Structure
+# Offline Mode Detection
 
-Sheet 1:
+Display status indicator:
 
-Invoice
+```text
+🟢 Online
+
+or
+
+🔴 Offline Mode
+```
+
+Top Navigation:
+
+```text
+Bill.Jemsky                Offline Mode
+```
+
+Detect:
+
+```js
+navigator.onLine
+```
+
+---
+
+# Service Worker
+
+Cache:
+
+* HTML
+* CSS
+* JS
+* Fonts
+* Images
+* Templates
+
+Strategies:
+
+```text
+App Shell → Cache First
+Assets → Cache First
+Updates → Stale While Revalidate
+```
+
+---
+
+# Offline Startup
+
+Even without internet:
+
+User should be able to:
+
+✓ Open App
+
+✓ Create Invoice
+
+✓ Edit Invoice
+
+✓ Generate PDF
+
+✓ Generate Excel
+
+✓ View Customers
+
+✓ View Products
+
+✓ View Templates
+
+✓ Backup Data
+
+All functionality should continue working.
+
+---
+
+# Desktop Application Support
+
+Provide optional Desktop Version.
+
+Recommended:
+
+```text
+Electron
+```
+
+or
+
+```text
+Tauri (Preferred)
+```
+
+---
+
+# Why Tauri
+
+Advantages:
+
+* Smaller Size
+* Better Performance
+* Lower RAM Usage
+* Native Feel
+* Easier Distribution
+
+Expected Bundle:
+
+```text
+Windows (.exe)
+Mac (.dmg)
+Linux (.AppImage)
+```
+
+---
+
+# Download Desktop App
+
+Settings Page:
+
+```text
+Download Desktop App
+
+Windows
+[ Download ]
+
+MacOS
+[ Download ]
+
+Linux
+[ Download ]
+```
+
+---
+
+# Data Storage
+
+Desktop App uses:
+
+```text
+IndexedDB
+```
+
+or
+
+```text
+SQLite
+```
+
+Future Option:
+
+```text
+Local SQLite
+```
+
+for larger datasets.
+
+---
+
+# Backup & Restore
+
+Add:
+
+```text
+Export All Data
+```
+
+Downloads:
+
+```text
+bill-jemsky-backup.json
+```
 
 Contains:
 
-* Business Details
-* Customer Details
-* Invoice Details
-* Item Table
-* Tax Summary
+* Invoices
+* Customers
+* Products
+* Business Profiles
+* Templates
+* Settings
 
 ---
 
-Sheet 2:
-
-Tax Summary
-
-Contains:
-
-* GST Breakdown
-* CGST
-* SGST
-* IGST
-
----
-
-Sheet 3:
-
-Customer Details
-
-Contains:
-
-* Customer Information
-* Address
-* GST Information
-
----
-
-Sheet 4:
-
-Business Details
-
-Contains:
-
-* Company Profile
-* Bank Details
-* UPI Details
-
----
-
-# Excel Formatting
-
-Requirements:
-
-* Borders
-* Header Styling
-* Merged Cells
-* Auto Width Columns
-* Number Formatting
-* Currency Formatting
-* Formula Support
-
-Output should be usable directly by accountants.
-
----
-
-# Bulk Export
+# Import Data
 
 Allow:
 
-* Single Invoice Excel
-* Single Invoice PDF
-* Multiple Invoice PDF
-* Multiple Invoice Excel
+```text
+Import Backup
+```
+
+Restore complete application state.
 
 ---
 
-# Export Center
+# Automatic Backup
 
-Provide export options:
+Settings:
 
-[ Download PDF ]
-[ Download Excel ]
-[ Download ZIP ]
-[ Email PDF ]
-[ Print Preview ]
+```text
+Auto Backup
+
+Daily
+Weekly
+Manual
+```
+
+Generate:
+
+```text
+bill-jemsky-backup-2026-05-30.json
+```
 
 ---
 
-# Future Architecture
+# Offline Update System
 
-Export Engine Interface
+When internet returns:
 
-PDF Exporter
-Excel Exporter
-CSV Exporter
-JSON Exporter
+```text
+New Version Available
 
-All exports should be driven from a common invoice schema so every template can generate identical data across PDF, Excel, and future formats.
+Current: 1.0.0
+Latest: 1.0.1
 
-The generated PDF should match professional accounting software standards and be suitable for direct business use, client sharing, taxation, auditing, and commercial printing.
+[ Update ]
+```
 
+Service Worker updates application safely.
 
+---
 
-use:
-npm i pdfmake or npm i pdfkit or npm i jspdf; whatever is best
+# Settings Page Additions
 
+```text
+Offline Installation
+
+✓ Install App
+✓ Desktop Mode
+✓ Export Backup
+✓ Import Backup
+✓ Clear Cache
+✓ Storage Usage
+✓ Offline Status
+✓ App Version
+✓ Update Checker
+```
+
+---
+
+# User Experience Requirements
+
+When internet disconnects:
+
+```text
+────────────────────────────
+Offline Mode Active
+All local features available
+────────────────────────────
+```
+
+No blocking popup.
+
+No interruption.
+
+User continues working normally.
+
+---
+
+# Technical Requirements
+
+Use:
+
+```text
+vite-plugin-pwa
+Workbox
+IndexedDB (Dexie)
+FileSaver
+ExcelJS
+React PDF / pdf-lib
+```
+
+Requirements:
+
+* Fully offline capable
+* Installable PWA
+* Desktop-app ready
+* Backup & restore support
+* Auto-update support
+* No internet dependency for invoice generation
+
+The final result should allow Bill.Jemsky to function as:
+
+1. Normal Website
+2. Installable PWA
+3. Offline Web Application
+4. Windows Desktop Application
+5. Mac Desktop Application
+6. Linux Desktop Application
+
+while keeping all invoice, customer, product, template, PDF, and Excel functionality fully operational without an internet connection.

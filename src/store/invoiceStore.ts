@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { db } from "../lib/db";
+import { TaxMode } from "../types";
 import type { InvoiceData, SavedInvoice, SavedClient, SavedProduct, SavedCompany, InvoiceItem, InvoiceTemplateConfig } from "../types";
 import { calcTotals, generateInvoiceNumber, numberToWords } from "../pages/Invoice/components/calculation";
 import { generateId } from "../utils/generateId";
 import { loadPrefs, patchPrefs } from "../hooks/useLocalPrefs";
+import { getCategoryById } from "../data/categorySchema";
 
 type AppTab = "dashboard" | "invoices" | "editor" | "clients" | "products" | "profiles" | "settings";
 
@@ -29,6 +31,8 @@ interface InvoiceState {
   openSections: string[];          // which accordion sections are open
   lastSavedAt: Date | null;
   isSaving: boolean;
+  autosaveEnabled: boolean;
+  setAutosaveEnabled: (enabled: boolean) => void;
   // ─────────────────────────────────────────────────────────────────────────
 
   // Navigation
@@ -190,6 +194,7 @@ const getNewBlankInvoice = (): InvoiceData => {
     templateId: "default",
     templateCategory: "modern",
     templateConfig: DEFAULT_INVOICE_CONFIG,
+    taxMode: TaxMode.INVOICE,
   };
 };
 
@@ -201,7 +206,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
     let sgstRate = invoice.sgstRate;
     let igstRate = invoice.igstRate;
 
-    if (invoice.currency === "INR") {
+    if (invoice.taxMode === "item") {
+      cgstRate = 0;
+      sgstRate = 0;
+      igstRate = 0;
+    } else if (invoice.currency === "INR") {
       const compGST = (invoice.companyGST || "").trim();
       const clientGST = (invoice.clientGST || "").trim();
       
@@ -262,7 +271,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
       invoice.additionalCharges || 0,
       cgstRate,
       sgstRate,
-      igstRate
+      igstRate,
+      invoice.taxMode || "invoice"
     );
 
     const oldPurchase = Number(invoice.oldPurchaseAmount) || 0;
@@ -274,11 +284,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
       const rate = Number(item.rate) || 0;
       const qty = Number(item.quantity) || 0;
       const netW = Number(item.netWeight) || 0;
-      const labour = Number(item.labour) || 0;
+      const labour = Number(item.makingCharge) || Number(item.labour) || 0;
       let amount = 0;
       
       if (netW > 0 || labour > 0) {
-        amount = netW * rate + labour;
+        amount = (netW || qty) * rate + labour;
       } else {
         amount = qty * rate;
       }
@@ -286,9 +296,14 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
       const itemDisc = Number(item.discount) || 0;
       amount = amount - amount * (itemDisc / 100);
       
+      // Compute item-level tax if in item mode
+      const taxRate = invoice.taxMode === "item" ? (Number(item.tax) || 0) : 0;
+      const taxAmt = Math.round((amount * (taxRate / 100) + Number.EPSILON) * 100) / 100;
+      
       return {
         ...item,
         amount: Number(amount.toFixed(2)),
+        taxAmt,
       };
     });
 
@@ -314,18 +329,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
 
   // ─── Autosave timer ──────────────────────────────────────────────────────────
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-
+ 
   const scheduleAutosave = () => {
+    if (!get().autosaveEnabled) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(async () => {
       const state = get();
       if (!state.currentInvoice.invoiceNumber) return;
       try {
-        set({ isSaving: true });
         await get().saveInvoice();
-        set({ isSaving: false, lastSavedAt: new Date() });
       } catch (_) {
-        set({ isSaving: false });
+        // error handling is managed inside saveInvoice
       }
     }, 700);
   };
@@ -355,13 +369,19 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
     openSections: prefs.openSections ?? ["business", "customer", "invoice", "items"],
     lastSavedAt: null,
     isSaving: false,
+    autosaveEnabled: prefs.autosaveEnabled ?? false,
+ 
+    setAutosaveEnabled: (enabled) => {
+      set({ autosaveEnabled: enabled });
+      patchPrefs({ autosaveEnabled: enabled });
+    },
 
     setActiveTab: (tab) => {
       set({ activeTab: tab });
       patchPrefs({ activeTab: tab });
     },
 
-    // \u2500\u2500\u2500 UI Prefs Actions \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     toggleSidebar: () => set((s) => {
       const next = !s.sidebarCollapsed;
@@ -485,19 +505,24 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
           showCategorySelection: true,
           showTemplatePicker: false,
           errors: {},
+          lastSavedAt: null,
         };
       });
     },
 
     setCategoryAndTemplate: (category, templateId, accentColor) => {
       set((s) => {
+        const catDef = getCategoryById(category);
+        const defaultTaxMode = (catDef ? catDef.taxMode : TaxMode.INVOICE) as TaxMode;
+        const defaultGSTRate = catDef ? catDef.defaultGSTRate : 18;
+
         const defaultItem = {
           id: generateId(),
           name: "",
           description: "",
           quantity: 1,
           rate: 0,
-          tax: 18,
+          tax: defaultGSTRate,
           discount: 0,
           hsn: "",
           amount: 0,
@@ -507,6 +532,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
           businessCategory: category,
           templateVariant: templateId,
           templateCategory: category,
+          taxMode: defaultTaxMode,
           industryFields: {},
           items: [defaultItem],
           templateConfig: s.currentInvoice.templateConfig
@@ -543,7 +569,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
           industryFields: { ...(s.currentInvoice.industryFields || {}), [key]: value },
         };
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
-        return { currentInvoice: recalculateCurrentInvoice(updated) };
+        return {
+          currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: s.autosaveEnabled ? s.lastSavedAt : null,
+        };
       });
     },
 
@@ -552,6 +581,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         currentInvoice: recalculateCurrentInvoice(savedInvoice),
         activeTab: "editor",
         errors: {},
+        lastSavedAt: savedInvoice.savedAt ? new Date(savedInvoice.savedAt) : null,
       });
     },
 
@@ -561,6 +591,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
         return {
           currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: state.autosaveEnabled ? state.lastSavedAt : null,
         };
       });
       scheduleAutosave();
@@ -590,6 +621,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
         return {
           currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: state.autosaveEnabled ? state.lastSavedAt : null,
         };
       });
     },
@@ -606,6 +638,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
         return {
           currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: state.autosaveEnabled ? state.lastSavedAt : null,
         };
       });
       scheduleAutosave();
@@ -635,6 +668,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
         return {
           currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: state.autosaveEnabled ? state.lastSavedAt : null,
         };
       });
     },
@@ -645,6 +679,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         localStorage.setItem("jemsky-invoice-draft-v2", JSON.stringify(updated));
         return {
           currentInvoice: recalculateCurrentInvoice(updated),
+          lastSavedAt: state.autosaveEnabled ? state.lastSavedAt : null,
         };
       });
     },
@@ -665,65 +700,72 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         throw new Error("Validation failed");
       }
 
-      // Check if we already have this invoice in DB to preserve its database ID, or generate one
-      let existingId = (current as unknown as SavedInvoice).id;
-      // Search by invoiceNumber if id is undefined or default
-      if (!existingId || existingId === "CURRENT") {
-        const matched = state.invoices.find(i => i.invoiceNumber === current.invoiceNumber);
-        existingId = matched ? matched.id : generateId();
-      }
-
-      const saveRecord: SavedInvoice = {
-        ...current,
-        id: existingId,
-        savedAt: new Date().toISOString(),
-      };
-
-      await db.invoices.put(saveRecord);
-      
-      // Also automatically save the client details and product details if they are new or modified!
-      if (current.clientName) {
-        const clientMatch = state.clients.find(
-          c => c.name.toLowerCase() === current.clientName.toLowerCase()
-        );
-        if (!clientMatch) {
-          await state.saveClient({
-            name: current.clientName,
-            company: current.clientCompany,
-            email: current.clientEmail,
-            phone: current.clientPhone,
-            address: current.clientAddress,
-            gstNumber: current.clientGST,
-            shippingAddress: current.clientShippingAddress,
-          });
+      set({ isSaving: true });
+      try {
+        // Check if we already have this invoice in DB to preserve its database ID, or generate one
+        let existingId = (current as unknown as SavedInvoice).id;
+        // Search by invoiceNumber if id is undefined or default
+        if (!existingId || existingId === "CURRENT") {
+          const matched = state.invoices.find(i => i.invoiceNumber === current.invoiceNumber);
+          existingId = matched ? matched.id : generateId();
         }
-      }
 
-      // Save new products automatically
-      for (const item of current.items) {
-        if (item.name) {
-          const productMatch = state.products.find(
-            p => p.name.toLowerCase() === item.name.toLowerCase()
+        const saveRecord: SavedInvoice = {
+          ...current,
+          id: existingId,
+          savedAt: new Date().toISOString(),
+        };
+
+        await db.invoices.put(saveRecord);
+        
+        // Also automatically save the client details and product details if they are new or modified!
+        if (current.clientName) {
+          const clientMatch = state.clients.find(
+            c => c.name.toLowerCase() === current.clientName.toLowerCase()
           );
-          if (!productMatch) {
-            await state.saveProduct({
-              name: item.name,
-              rate: item.rate,
-              tax: item.tax,
-              description: item.description,
-              hsn: item.hsn,
+          if (!clientMatch) {
+            await state.saveClient({
+              name: current.clientName,
+              company: current.clientCompany,
+              email: current.clientEmail,
+              phone: current.clientPhone,
+              address: current.clientAddress,
+              gstNumber: current.clientGST,
+              shippingAddress: current.clientShippingAddress,
             });
           }
         }
+
+        // Save new products automatically
+        for (const item of current.items) {
+          if (item.name) {
+            const productMatch = state.products.find(
+              p => p.name.toLowerCase() === item.name.toLowerCase()
+            );
+            if (!productMatch) {
+              await state.saveProduct({
+                name: item.name,
+                rate: item.rate,
+                tax: item.tax,
+                description: item.description,
+                hsn: item.hsn,
+              });
+            }
+          }
+        }
+
+        // Refresh list
+        await state.loadAllData();
+        
+        // Clean draft
+        localStorage.removeItem("jemsky-invoice-draft-v2");
+
+        set({ isSaving: false, lastSavedAt: new Date() });
+        return existingId;
+      } catch (err) {
+        set({ isSaving: false });
+        throw err;
       }
-
-      // Refresh list
-      await state.loadAllData();
-      
-      // Clean draft
-      localStorage.removeItem("jemsky-invoice-draft-v2");
-
-      return existingId;
     },
 
     deleteInvoice: async (id) => {

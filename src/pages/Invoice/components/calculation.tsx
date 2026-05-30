@@ -11,7 +11,7 @@ export function calcItem(item: InvoiceItem) {
   const rate = Number(item.rate) || 0;
   const tax = Number(item.tax) || 0;
   const discount = Number(item.discount) || 0;
-  const labour = Number(item.labour) || 0;
+  const labour = Number(item.makingCharge) || Number(item.labour) || 0;
   const netW = Number(item.netWeight) || 0;
   const grossW = Number(item.grossWeight) || 0;
 
@@ -45,14 +45,17 @@ export function calcTotals(
   additionalCharges = 0,
   cgstRate = 0,
   sgstRate = 0,
-  igstRate = 0
+  igstRate = 0,
+  taxMode: "invoice" | "item" = "invoice"
 ) {
   let subtotal = 0;
   let totalDiscount = 0;
   let itemTaxSum = 0;
 
   items.forEach((item) => {
-    const c = calcItem(item);
+    // For invoice mode, we ignore item-level tax
+    const effectiveTax = taxMode === "item" ? (Number(item.tax) || 0) : 0;
+    const c = calcItem({ ...item, tax: effectiveTax });
     subtotal += c.subtotal;
     totalDiscount += c.discountAmt;
     itemTaxSum += c.taxAmt;
@@ -62,26 +65,21 @@ export function calcTotals(
   const invoiceDiscountAmount = r2(taxableAmountBeforeInvoiceDiscount * (invoiceDiscountPercent / 100));
   const netTaxableAmount = r2(taxableAmountBeforeInvoiceDiscount - invoiceDiscountAmount);
 
-  // If explicit invoice GST rates are provided, calculate based on netTaxableAmount
-  // Otherwise, fallback to summing up individual item taxes
   let cgstAmount = 0;
   let sgstAmount = 0;
   let igstAmount = 0;
   let totalTax = 0;
 
-  if (cgstRate > 0 || sgstRate > 0 || igstRate > 0) {
+  if (taxMode === "invoice") {
     cgstAmount = r2(netTaxableAmount * (cgstRate / 100));
     sgstAmount = r2(netTaxableAmount * (sgstRate / 100));
     igstAmount = r2(netTaxableAmount * (igstRate / 100));
     totalTax = r2(cgstAmount + sgstAmount + igstAmount);
   } else {
-    // If no explicit CGST/SGST/IGST rates are configured on the invoice,
-    // we split the itemTaxSum into CGST/SGST or IGST based on whether IGST is preferred
-    // For local billing, we split it 50-50 between CGST and SGST
+    // taxMode === "item"
     totalTax = r2(itemTaxSum);
-    // Assume intra-state split (CGST+SGST) by default if no IGST rate
-    cgstAmount = r2(totalTax / 2);
-    sgstAmount = r2(totalTax / 2);
+    cgstAmount = 0;
+    sgstAmount = 0;
     igstAmount = 0;
   }
 

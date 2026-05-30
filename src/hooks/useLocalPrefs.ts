@@ -19,6 +19,8 @@ export interface UIPrefs {
   deviceMode: "desktop" | "tablet" | "mobile" | "a4";
   /** Theme */
   theme: "dark" | "light";
+  /** Automatically save invoices to IndexedDB on type */
+  autosaveEnabled: boolean;
 }
 
 const DEFAULTS: UIPrefs = {
@@ -29,6 +31,7 @@ const DEFAULTS: UIPrefs = {
   zoom: 90,
   deviceMode: "desktop",
   theme: "dark",
+  autosaveEnabled: false,
 };
 
 export function loadPrefs(): UIPrefs {

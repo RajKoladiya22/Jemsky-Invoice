@@ -24,6 +24,7 @@ import {
   Palette,
 } from "lucide-react";
 import { db } from "../lib/db";
+import { TaxMode } from "../types";
 import type { SavedClient, SavedProduct, InvoiceItem } from "../types";
 import { CURRENCIES, PAYMENT_TERMS } from "../pages/Invoice/components/constants";
 import { inputCls, SectionHeader, Field } from "../pages/Invoice/components/ui";
@@ -83,7 +84,9 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ isDark }) => {
   
   // ─── Dynamic industry engine ────────────────────────────────────────────
   const categoryId = currentInvoice.businessCategory || currentInvoice.templateCategory || "retail";
-  const categoryColumns = getCategoryColumns(categoryId);
+  const categoryColumns = getCategoryColumns(categoryId).filter(
+    (col) => col.key !== "tax" || currentInvoice.taxMode === TaxMode.ITEM
+  );
   const extraInvoiceFields = getCategoryExtraFields(categoryId);
   const terminology = getCategoryTerminology(categoryId);
   const currentCatDef = BUSINESS_CATEGORIES.find((c) => c.id === categoryId);
@@ -428,6 +431,23 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ isDark }) => {
         <AccordionHeader id="invoice" label="Invoice Details" icon={Hash} />
         <div className={`accordion-wrapper ${isOpen("invoice") ? "open mt-2 mb-4" : ""}`}>
           <div className="accordion-content space-y-4 px-1 pb-4">
+            {/* GST Tax Calculation Mode */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                  GST Tax Calculation Mode
+                </label>
+                <select
+                  value={currentInvoice.taxMode || TaxMode.INVOICE}
+                  onChange={(e) => updateInvoiceFields({ taxMode: e.target.value as TaxMode })}
+                  className={`w-full rounded-xl border px-3.5 py-2.5 text-xs outline-none cursor-pointer ${inputBgCls}`}
+                >
+                  <option value={TaxMode.INVOICE}>Invoice-Level GST (Summary shows CGST/SGST/IGST breakdown)</option>
+                  <option value={TaxMode.ITEM}>Item-Level GST (GST % column in table, summary shows total GST)</option>
+                </select>
+              </div>
+            </div>
+
             {/* ─── Industry-Specific Invoice Fields ─────────────────────── */}
             {extraInvoiceFields.length > 0 && (
               <div className="mt-6 space-y-4">
@@ -696,48 +716,52 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ isDark }) => {
                 </div>
 
                 {/* GST Settings */}
-                <div className="col-span-2 pt-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-violet-500 border-b pb-1">
-                    GST Split Parameters (India)
-                  </h3>
-                </div>
+                {currentInvoice.taxMode !== TaxMode.ITEM && (
+                  <>
+                    <div className="col-span-2 pt-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-violet-500 border-b pb-1">
+                        GST Split Parameters (India)
+                      </h3>
+                    </div>
 
-                <div>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
-                    CGST Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={currentInvoice.cgstRate ?? 1.5}
-                    onChange={(e) => updateInvoiceFields({ cgstRate: Number(e.target.value) || 0 })}
-                    className={inputBgCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
-                    SGST Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={currentInvoice.sgstRate ?? 1.5}
-                    onChange={(e) => updateInvoiceFields({ sgstRate: Number(e.target.value) || 0 })}
-                    className={inputBgCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
-                    IGST Rate (%) (Interstate replacement)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={currentInvoice.igstRate ?? 0}
-                    onChange={(e) => updateInvoiceFields({ igstRate: Number(e.target.value) || 0 })}
-                    className={inputBgCls}
-                  />
-                </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                        CGST Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        value={currentInvoice.cgstRate ?? 1.5}
+                        onChange={(e) => updateInvoiceFields({ cgstRate: Number(e.target.value) || 0 })}
+                        className={inputBgCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                        SGST Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        value={currentInvoice.sgstRate ?? 1.5}
+                        onChange={(e) => updateInvoiceFields({ sgstRate: Number(e.target.value) || 0 })}
+                        className={inputBgCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                        IGST Rate (%) (Interstate replacement)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        value={currentInvoice.igstRate ?? 0}
+                        onChange={(e) => updateInvoiceFields({ igstRate: Number(e.target.value) || 0 })}
+                        className={inputBgCls}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="col-span-2">
                   <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
@@ -788,6 +812,21 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ isDark }) => {
                     Change
                   </button>
                 </div>
+              </div>
+
+              {/* GST Tax Calculation Mode */}
+              <div className="col-span-2">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
+                  GST Tax Calculation Mode
+                </label>
+                <select
+                  value={currentInvoice.taxMode || TaxMode.INVOICE}
+                  onChange={(e) => updateInvoiceFields({ taxMode: e.target.value as TaxMode })}
+                  className={`w-full rounded-xl border px-3.5 py-2.5 text-xs outline-none cursor-pointer ${inputBgCls}`}
+                >
+                  <option value={TaxMode.INVOICE}>Invoice-Level GST (CGST/SGST/IGST breakdown)</option>
+                  <option value={TaxMode.ITEM}>Item-Level GST (Individual GST % per row)</option>
+                </select>
               </div>
 
               {/* Primary Color Customization */}
