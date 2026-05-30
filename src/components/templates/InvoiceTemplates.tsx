@@ -628,7 +628,7 @@ export const JewelryTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl })
               <span>Overall Discount</span><span className="font-mono">− {fmt(sym, invoice.invoiceDiscountAmount)}</span>
             </div>
           ) : null}
-          {invoice.taxMode === "item" || (!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
+          {(!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
             <div className="flex justify-between text-gray-500">
               <span>GST Total</span><span className="font-mono">{fmt(sym, invoice.totalTax)}</span>
             </div>
@@ -636,17 +636,17 @@ export const JewelryTemplate: React.FC<TemplateProps> = ({ invoice, qrCodeUrl })
             <>
               {invoice.cgstAmount ? (
                 <div className="flex justify-between text-gray-500">
-                  <span>CGST ({invoice.cgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
+                  <span>CGST{invoice.taxMode !== "item" ? ` (${invoice.cgstRate}%)` : ""}</span><span className="font-mono">{fmt(sym, invoice.cgstAmount)}</span>
                 </div>
               ) : null}
               {invoice.sgstAmount ? (
                 <div className="flex justify-between text-gray-500">
-                  <span>SGST ({invoice.sgstRate}%)</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
+                  <span>SGST{invoice.taxMode !== "item" ? ` (${invoice.sgstRate}%)` : ""}</span><span className="font-mono">{fmt(sym, invoice.sgstAmount)}</span>
                 </div>
               ) : null}
               {invoice.igstAmount ? (
                 <div className="flex justify-between text-gray-500">
-                  <span>IGST ({invoice.igstRate}%)</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
+                  <span>IGST{invoice.taxMode !== "item" ? ` (${invoice.igstRate}%)` : ""}</span><span className="font-mono">{fmt(sym, invoice.igstAmount)}</span>
                 </div>
               ) : null}
             </>
@@ -796,7 +796,7 @@ export const ManufacturingTemplate: React.FC<TemplateProps> = ({ invoice, qrCode
           <div className="flex justify-between text-gray-500">
             <span>Taxable Amount</span><span className="font-mono">{fmt(sym, invoice.taxableAmount)}</span>
           </div>
-          {invoice.taxMode === "item" || (!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
+          {(!invoice.cgstAmount && !invoice.sgstAmount && !invoice.igstAmount && invoice.totalTax) ? (
             <div className="flex justify-between text-gray-500">
               <span>GST Amount</span><span className="font-mono">{fmt(sym, invoice.totalTax)}</span>
             </div>

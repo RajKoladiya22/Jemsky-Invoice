@@ -78,9 +78,19 @@ export function calcTotals(
   } else {
     // taxMode === "item"
     totalTax = r2(itemTaxSum);
-    cgstAmount = 0;
-    sgstAmount = 0;
-    igstAmount = 0;
+    if (igstRate > 0) {
+      igstAmount = totalTax;
+      cgstAmount = 0;
+      sgstAmount = 0;
+    } else if (cgstRate > 0 || sgstRate > 0) {
+      cgstAmount = r2(totalTax / 2);
+      sgstAmount = r2(totalTax / 2);
+      igstAmount = 0;
+    } else {
+      cgstAmount = 0;
+      sgstAmount = 0;
+      igstAmount = 0;
+    }
   }
 
   const grandTotalBeforeRoundOff = r2(netTaxableAmount + totalTax + Number(shippingCharges) + Number(additionalCharges));

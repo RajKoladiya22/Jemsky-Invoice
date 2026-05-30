@@ -457,7 +457,7 @@ export async function generateInvoicePDF(
   const tableBody: (string | number)[][] = invoice.items.map((item: InvoiceItem, idx: number) => {
     const row: (string | number)[] = [idx + 1];
     pdfColumnDefs.forEach(col => {
-      const val = (item as Record<string, unknown>)[col.itemField as string];
+      const val = (item as Record<string, any>)[col.itemField as string];
       if (val === undefined || val === null || val === "") {
         row.push("—");
       } else if (col.align === "right" && (typeof val === "number" || (typeof val === "string" && val !== "" && !isNaN(Number(val))))) {
@@ -514,7 +514,7 @@ export async function generateInvoicePDF(
     // Repeat table headers on every new page
     showHead: "everyPage",
     didParseCell(data) {
-      if (data.row.type === "head") return;
+      if (data?.row?.type === "head") return;
       if (
         data.cell.text[0]?.includes(currSym) ||
         data.column.index === tableHead.length - 1
@@ -551,16 +551,21 @@ export async function generateInvoicePDF(
     totals.push({ label: "Taxable Amount", value: invoice.taxableAmount || 0 });
   }
 
-  if (invoice.taxMode === "item") {
-    if ((invoice.totalTax || 0) > 0) totals.push({ label: "GST Total", value: invoice.totalTax || 0 });
-  } else {
-    if (config.sections.gstDetails) {
-      if ((invoice.cgstAmount || 0) > 0) totals.push({ label: `CGST @ ${invoice.cgstRate || 1.5}%`,  value: invoice.cgstAmount || 0 });
-      if ((invoice.sgstAmount || 0) > 0) totals.push({ label: `SGST @ ${invoice.sgstRate || 1.5}%`,  value: invoice.sgstAmount || 0 });
-      if ((invoice.igstAmount || 0) > 0) totals.push({ label: `IGST @ ${invoice.igstRate || 0}%`,    value: invoice.igstAmount || 0 });
-    } else if ((invoice.totalTax || 0) > 0) {
-      totals.push({ label: "Total Tax", value: invoice.totalTax || 0 });
+  if (config.sections.gstDetails && ((invoice.cgstAmount || 0) > 0 || (invoice.sgstAmount || 0) > 0 || (invoice.igstAmount || 0) > 0)) {
+    if ((invoice.cgstAmount || 0) > 0) {
+      const label = invoice.taxMode === "item" ? "CGST" : `CGST @ ${invoice.cgstRate || 1.5}%`;
+      totals.push({ label, value: invoice.cgstAmount || 0 });
     }
+    if ((invoice.sgstAmount || 0) > 0) {
+      const label = invoice.taxMode === "item" ? "SGST" : `SGST @ ${invoice.sgstRate || 1.5}%`;
+      totals.push({ label, value: invoice.sgstAmount || 0 });
+    }
+    if ((invoice.igstAmount || 0) > 0) {
+      const label = invoice.taxMode === "item" ? "IGST" : `IGST @ ${invoice.igstRate || 0}%`;
+      totals.push({ label, value: invoice.igstAmount || 0 });
+    }
+  } else if ((invoice.totalTax || 0) > 0) {
+    totals.push({ label: "GST Total", value: invoice.totalTax || 0 });
   }
 
   if ((invoice.shippingCharges || 0) > 0)    totals.push({ label: "Shipping Charges",    value: invoice.shippingCharges || 0 });

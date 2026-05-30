@@ -30,6 +30,46 @@ export default function InvoicePage() {
   } = useInvoiceStore();
 
   const [mobileView, setMobileView] = useState<"form" | "preview">("form");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    const handleBeforePrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforePrompt);
+
+    const handleAppInstalled = () => {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("beforeinstallprompt", handleBeforePrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const installPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+    }
+  };
   const [editorWidth, setEditorWidth] = useState<number>(() => {
     try {
       const saved = localStorage.getItem("jemsky-editor-width");
@@ -211,18 +251,42 @@ export default function InvoicePage() {
 
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        {/* Mobile Top Bar */}
+        {/* Unified Top Bar */}
         <div
-          className={`md:hidden shrink-0 flex items-center justify-between px-4 h-14 border-b ${
-            isDark ? "bg-[#0c0c0e] border-white/5" : "bg-[#f8f7f4] border-black/5"
+          className={`shrink-0 flex items-center justify-between px-6 h-14 border-b transition-colors duration-300 ${
+            isDark ? "bg-[#111113] border-white/5" : "bg-white border-black/5"
           }`}
         >
-          <span className="font-black text-sm tracking-tight bg-gradient-to-r from-violet-500 to-violet-700 bg-clip-text text-transparent">
-            Bill.Jemsky
-          </span>
-          <span className={`text-xs font-semibold capitalize ${isDark ? "text-white/40" : "text-black/40"}`}>
-            {activeTab}
-          </span>
+          {/* Left Side: Brand on mobile, Active Tab on desktop */}
+          <div className="flex items-center gap-3">
+            <span className="md:hidden font-black text-sm tracking-tight bg-gradient-to-r from-violet-500 to-violet-700 bg-clip-text text-transparent">
+              Bill.Jemsky
+            </span>
+            <span className={`hidden md:inline text-sm font-bold capitalize ${isDark ? "text-white" : "text-gray-900"}`}>
+              {activeTab === "editor" ? "Invoice Editor" : activeTab}
+            </span>
+          </div>
+
+          {/* Right Side: Install Button & Status Indicator */}
+          <div className="flex items-center gap-3">
+            {isInstallable && (
+              <button
+                onClick={installPWA}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white transition-all shadow-md shadow-violet-600/10 cursor-pointer"
+              >
+                Install App
+              </button>
+            )}
+
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${
+              isOnline
+                ? (isDark ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-emerald-50 border-emerald-100 text-emerald-700")
+                : (isDark ? "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse" : "bg-rose-50 border-rose-100 text-rose-700 animate-pulse")
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`} />
+              <span>{isOnline ? "Online" : "Offline Mode"}</span>
+            </div>
+          </div>
         </div>
 
         {/* Content Area */}

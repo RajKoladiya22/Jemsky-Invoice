@@ -206,11 +206,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
     let sgstRate = invoice.sgstRate;
     let igstRate = invoice.igstRate;
 
-    if (invoice.taxMode === "item") {
-      cgstRate = 0;
-      sgstRate = 0;
-      igstRate = 0;
-    } else if (invoice.currency === "INR") {
+    if (invoice.currency === "INR") {
       const compGST = (invoice.companyGST || "").trim();
       const clientGST = (invoice.clientGST || "").trim();
       
@@ -262,6 +258,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => {
         cgstRate = baseGSTRate / 2;
         sgstRate = baseGSTRate / 2;
       }
+    } else {
+      cgstRate = 0;
+      sgstRate = 0;
+      igstRate = 0;
     }
 
     const computed = calcTotals(
