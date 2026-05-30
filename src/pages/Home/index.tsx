@@ -95,7 +95,7 @@ export default function HomePage() {
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold bg-gradient-to-r from-violet-500 to-violet-700 bg-clip-text text-transparent leading-none">
-                                    Jemsky
+                                    Bill.Jemsky
                                 </h1>
                                 <p className={`text-[10px] font-medium tracking-widest uppercase ${isDark ? "text-white/30" : "text-black/30"}`}>
                                     Invoice
@@ -243,9 +243,9 @@ export default function HomePage() {
                                                 <FileText className="w-4 h-4 text-white" />
                                             </div>
                                             <p className={`text-xs font-semibold tracking-widest uppercase mb-0.5 ${isDark ? "text-white/30" : "text-black/30"}`}>
-                                                Jemsky Technologies
+                                                Bill.Jemsky
                                             </p>
-                                            <p className={`text-xs ${isDark ? "text-white/25" : "text-black/25"}`}>jemsky.com · hello@jemsky.com</p>
+                                            <p className={`text-xs ${isDark ? "text-white/25" : "text-black/25"}`}>bill.jemsky.com · hello@bill.jemsky.com</p>
                                         </div>
                                         <div className="text-right">
                                             <p className={`text-xs font-semibold tracking-widest uppercase mb-0.5 ${isDark ? "text-white/30" : "text-black/30"}`}>Invoice</p>
@@ -436,12 +436,12 @@ export default function HomePage() {
                             <h2 className="text-3xl sm:text-4xl font-bold mb-8 tracking-tight leading-tight">
                                 Why businesses choose<br />
                                 <span className="bg-gradient-to-r from-violet-500 to-purple-600 bg-clip-text text-transparent">
-                                    Jemsky Invoice
+                                    Bill.Jemsky
                                 </span>
                             </h2>
                             <div className="space-y-5">
                                 {[
-                                    { title: "Built for jemsky.com", desc: "Designed as a first-class product — not an afterthought." },
+                                    { title: "Built for bill.jemsky.com", desc: "Designed as a first-class product — not an afterthought." },
                                     { title: "Privacy-first architecture", desc: "Zero data collection. Your invoices stay on your device, always." },
                                     { title: "Works offline instantly", desc: "No internet needed after first load. Create invoices anywhere, anytime." },
                                     { title: "Professional PDFs instantly", desc: "One click to a pixel-perfect invoice your clients will trust." },
@@ -517,7 +517,7 @@ export default function HomePage() {
                                 <FileText className="w-3.5 h-3.5 text-white" />
                             </div>
                             <span className="font-bold bg-gradient-to-r from-violet-500 to-violet-700 bg-clip-text text-transparent">
-                                Jemsky Invoice
+                                Bill.Jemsky
                             </span>
                         </div>
 
@@ -534,7 +534,7 @@ export default function HomePage() {
                         </div>
 
                         <p className={`text-xs ${isDark ? "text-white/25" : "text-black/25"}`}>
-                            © {new Date().getFullYear()} Jemsky · jemsky.com
+                            © {new Date().getFullYear()} Bill.Jemsky · bill.jemsky.com
                         </p>
                     </div>
                 </div>

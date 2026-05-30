@@ -1,0 +1,403 @@
+# Bill.Jemsky — Enterprise PDF & Excel Export Requirements
+
+## Professional PDF Generation Engine
+
+Never generate PDFs using:
+
+* window.print()
+* Browser Print to PDF
+* HTML screenshot export
+* DOM-to-image PDF generation
+
+These approaches produce inconsistent layouts across devices and printers.
+
+Instead, implement a dedicated PDF rendering engine.
+
+---
+
+# Recommended PDF Stack
+
+## Primary Engine
+
+React PDF
+
+Purpose:
+
+* Dynamic invoice rendering
+* Multi-page support
+* Consistent A4 layouts
+* Custom fonts
+* Table rendering
+* Automatic page breaks
+
+---
+
+## Secondary Engine
+
+pdf-lib
+
+Purpose:
+
+* PDF manipulation
+* Watermarks
+* QR embedding
+* Signature embedding
+* PDF merging
+
+---
+
+# PDF Design Standards
+
+## Supported Sizes
+
+* A4 Portrait
+* A4 Landscape
+* A5
+* Letter
+* Thermal Receipt
+
+---
+
+## Fixed Layout Grid
+
+Header Height:
+120px
+
+Customer Section:
+120px
+
+Item Table:
+Dynamic
+
+Summary Section:
+120px
+
+Footer:
+100px
+
+Use a professional PDF grid system rather than free-form positioning.
+
+---
+
+# Professional Invoice Structure
+
+## Header
+
+Left:
+
+* Logo
+* Business Name
+* GST Number
+* Contact Details
+
+Center:
+
+* Invoice Type
+* Tax Invoice
+* Proforma Invoice
+* Quotation
+
+Right:
+
+* Invoice Number
+* Invoice Date
+* Due Date
+
+---
+
+# Customer Block
+
+Billing Information
+
+Shipping Information
+
+GST Information
+
+Place of Supply
+
+Customer Code
+
+---
+
+# Dynamic Item Table
+
+Columns loaded from selected category.
+
+Examples:
+
+## Jewelry
+
+* Item
+* Gross Weight
+* Net Weight
+* Purity
+* Making Charge
+* GST
+* Amount
+
+## Textile Job Work
+
+* Challan No
+* Description
+* HSN
+* Design No
+* Work
+* Plain
+* Short
+* Total
+* Rate
+* Amount
+
+## Manufacturing
+
+* Material
+* Batch No
+* Qty
+* Unit
+* Rate
+* Tax
+* Amount
+
+---
+
+# Table Engine
+
+Requirements:
+
+* Repeating table headers
+* Automatic page breaks
+* No row splitting
+* Dynamic column widths
+* Row height calculation
+* Footer totals
+
+---
+
+# Summary Section
+
+Display:
+
+* Subtotal
+* Discount
+* Taxable Amount
+* CGST
+* SGST
+* IGST
+* Round Off
+* Grand Total
+
+---
+
+# Amount in Words
+
+Automatically convert:
+
+₹418352.00
+
+To:
+
+Four Lakh Eighteen Thousand Three Hundred Fifty Two Rupees Only
+
+---
+
+# QR Block
+
+Support:
+
+* UPI QR
+* Invoice Verification QR
+* Business QR
+
+---
+
+# Signature Block
+
+Support:
+
+* Digital Signature
+* Uploaded Signature
+* Company Stamp
+
+Stored in IndexedDB.
+
+---
+
+# PDF Templates
+
+Provide multiple layouts.
+
+## Minimal
+
+Clean layout.
+
+## Corporate
+
+Enterprise style.
+
+## Premium
+
+Luxury design.
+
+## Textile
+
+Based on textile industry invoices.
+
+## Jewelry
+
+Gold and silver billing format.
+
+## Manufacturing
+
+Industrial layout.
+
+## Wholesale
+
+Distributor layout.
+
+---
+
+# PDF Output Quality
+
+Requirements:
+
+* 300 DPI equivalent output
+* Consistent margins
+* Embedded fonts
+* Vector rendering
+* Print-safe colors
+* Pixel-perfect alignment
+
+Output should look identical on:
+
+* Chrome
+* Safari
+* Edge
+* Windows
+* Mac
+* Linux
+* Commercial printers
+
+---
+
+# Excel Export System
+
+Every invoice must be exportable as Excel.
+
+---
+
+# Recommended Library
+
+ExcelJS
+
+---
+
+# Excel Workbook Structure
+
+Sheet 1:
+
+Invoice
+
+Contains:
+
+* Business Details
+* Customer Details
+* Invoice Details
+* Item Table
+* Tax Summary
+
+---
+
+Sheet 2:
+
+Tax Summary
+
+Contains:
+
+* GST Breakdown
+* CGST
+* SGST
+* IGST
+
+---
+
+Sheet 3:
+
+Customer Details
+
+Contains:
+
+* Customer Information
+* Address
+* GST Information
+
+---
+
+Sheet 4:
+
+Business Details
+
+Contains:
+
+* Company Profile
+* Bank Details
+* UPI Details
+
+---
+
+# Excel Formatting
+
+Requirements:
+
+* Borders
+* Header Styling
+* Merged Cells
+* Auto Width Columns
+* Number Formatting
+* Currency Formatting
+* Formula Support
+
+Output should be usable directly by accountants.
+
+---
+
+# Bulk Export
+
+Allow:
+
+* Single Invoice Excel
+* Single Invoice PDF
+* Multiple Invoice PDF
+* Multiple Invoice Excel
+
+---
+
+# Export Center
+
+Provide export options:
+
+[ Download PDF ]
+[ Download Excel ]
+[ Download ZIP ]
+[ Email PDF ]
+[ Print Preview ]
+
+---
+
+# Future Architecture
+
+Export Engine Interface
+
+PDF Exporter
+Excel Exporter
+CSV Exporter
+JSON Exporter
+
+All exports should be driven from a common invoice schema so every template can generate identical data across PDF, Excel, and future formats.
+
+The generated PDF should match professional accounting software standards and be suitable for direct business use, client sharing, taxation, auditing, and commercial printing.
+
+
+
+use:
+npm i pdfmake or npm i pdfkit or npm i jspdf; whatever is best
+
